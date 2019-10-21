@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using Jing;
+using System.Collections.Generic;
 using System.IO;
 
 namespace Zero
@@ -12,11 +13,19 @@ namespace Zero
         /// <summary>
         /// 本地数据对象
         /// </summary>
-        public struct VO
+        public class VO
         {
-            public bool isInit;
-            public ResVerVO localResVO;
-            public Dictionary<string, string> localValueDic;
+            /// <summary>
+            /// 是否APP已初始化
+            /// </summary>
+            public bool isInit = false;
+
+            /// <summary>
+            /// 是否更新Setting文件
+            /// </summary>
+            public bool isUpdateSetting = true;
+
+            public Dictionary<string, string> localValueDic = new Dictionary<string, string>();
         }
 
         VO _vo;
@@ -24,7 +33,8 @@ namespace Zero
 
         public LocalDataModel()
         {
-            _path = Runtime.Ins.localResDir + FILE_NAME;
+            _path = FileSystem.CombinePaths(Runtime.Ins.generateFilesDir, FILE_NAME);
+
             if (File.Exists(_path))
             {
                 //读取已有的数据
@@ -33,8 +43,7 @@ namespace Zero
             else
             {
                 //新数据初始化
-                _vo.isInit = false;
-                _vo.localValueDic = new Dictionary<string, string>();
+                _vo = new VO();                
             }
         }
 
@@ -62,20 +71,14 @@ namespace Zero
                 Save2Local();
             }
         }
-
         /// <summary>
-        /// 本地数据版本对象
+        /// 是否更新setting文件
         /// </summary>
-        public ResVerVO LocalResVO
+        public bool IsUpdateSetting
         {
             get
             {
-                return _vo.localResVO;
-            }
-            set
-            {
-                _vo.localResVO = value;
-                Save2Local();
+                return _vo.isUpdateSetting;
             }
         }
 
@@ -101,7 +104,7 @@ namespace Zero
             {
                 return _vo.localValueDic[key];
             }
-            return key;
+            return null;
         }
 
         /// <summary>

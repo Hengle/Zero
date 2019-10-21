@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Reflection;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
@@ -8,9 +9,10 @@ namespace Zero
     /// <summary>
     /// 游戏预加载逻辑
     /// </summary>
+    [DisallowMultipleComponent]
     public class Preload : MonoBehaviour
     {
-        private enum EState
+        public enum EState
         {
             /// <summary>
             /// 解压StreamingAssets/Package.zip
@@ -32,44 +34,78 @@ namespace Zero
             /// 启动主程序
             /// </summary>
             STARTUP
+        }        
+        
+        public RuntimeVO runtimeCfg = new RuntimeVO();
+        
+        EState _currentState;
+        /// <summary>
+        /// 当前状态
+        /// </summary>
+        public EState CurrentState
+        {
+            get
+            {
+                return _currentState;
+            }
         }
-
-        [Header("运行时配置")]
-        public RuntimeVO runtimeCfg;
 
         /// <summary>
         /// 状态改变的委托
         /// </summary>
-        public Action<string> onStateChange;
+        public event Action<EState> onStateChange;
         /// <summary>
         /// 状态对应进度的委托
         /// </summary>
-        public Action<float> onProgress;
+        public event Action<float, long> onProgress;
+
+        /// <summary>
+        /// Preload加热失败
+        /// </summary>
+        public event Action<string> onError;               
 
         void Start()
         {            
+
+        }
+
+        /// <summary>
+        /// 开始激活预加载
+        /// </summary>
+        /// <param name="rg"></param>
+        public void StartPreload(BaseILRuntimeGenerics rg = null)
+        {            
+            if(null != rg)
+            {
+                ILRuntimeILWorker.RegisterILRuntimeGenerics(rg);
+            }
+
+            //初始化运行环境配置环境
             Runtime.Ins.Init(runtimeCfg);
-            Log.CI(Log.COLOR_BLUE,"游戏运行模式：[{0}]", Runtime.Ins.ResMode.ToString());            
-            if (Runtime.Ins.IsInlineRelease)
-            {                
+
+            Log.CI(Log.COLOR_BLUE, "游戏运行模式：[{0}]", Runtime.Ins.IsHotResProject?Runtime.Ins.ResMode.ToString():"Local");
+
+            if (false == Runtime.Ins.IsHotResProject)
+            {
+                ResMgr.Ins.Init(ResMgr.EResMgrType.RESOURCES);
                 StartMainPrefab();
             }
             else
             {
-                OnStageChange(EState.UNZIP_PACKAGE);                
+                OnStageChange(EState.UNZIP_PACKAGE);
                 new PackageUpdate().Start(LoadSettingFile, OnPackageUpdate);
             }
         }
 
-        public void OnPackageUpdate(float progress)
+        public void OnPackageUpdate(float progress, long totalSize)
         {
-            OnProgress(progress);
+            OnProgress(progress, totalSize);
         }
 
         void LoadSettingFile()
         {
             OnStageChange(EState.SETTING_UPDATE);
-            new SettingUpdate().Start(ClientUpdate);
+            new SettingUpdate().Start(ClientUpdate, OnError);
         }
 
         /// <summary>
@@ -78,12 +114,12 @@ namespace Zero
         void ClientUpdate()
         {                       
             OnStageChange(EState.CLIENT_UDPATE);
-            AClientUpdate.CreateNowPlatformUpdate().Start(StartupResUpdate, OnClientUpdateProgress);
+            new AppUpdate().Start(StartupResUpdate, OnClientUpdateProgress, OnError);
         }
 
-        private void OnClientUpdateProgress(float progress)
+        private void OnClientUpdateProgress(float progress, long totalSize)
         {
-            OnProgress(progress);
+            OnProgress(progress, totalSize);
         }
 
         /// <summary>
@@ -94,12 +130,12 @@ namespace Zero
             OnStageChange(EState.RES_UPDATE);           
 
             ResUpdate update = new ResUpdate();
-            update.Start(Runtime.Ins.setting.startupResGroups, StartMainPrefab, OnUpdateStartupResGroups);
+            update.Start(Runtime.Ins.setting.startupResGroups, StartMainPrefab, OnUpdateStartupResGroups, onError);
         }
 
-        private void OnUpdateStartupResGroups(float progress)
-        {
-            OnProgress(progress);
+        private void OnUpdateStartupResGroups(float progress, long totalSize)
+        {            
+            OnProgress(progress, totalSize);
         }
 
         void StartMainPrefab()
@@ -107,26 +143,40 @@ namespace Zero
             OnStageChange(EState.STARTUP);
             GameObject.Destroy(this.gameObject);
             //加载ILRuntimePrefab;            
-            GameObject mainPrefab = ResMgr.Ins.Load<GameObject>(Runtime.Ins.VO.mainPrefab.abName, Runtime.Ins.VO.mainPrefab.assetName);
+            GameObject mainPrefab = ResMgr.Ins.Load<GameObject>(ZeroConst.ROOT_AB_FILE_NAME, Runtime.Ins.VO.mainPrefab);
             GameObject go = GameObject.Instantiate(mainPrefab);
-            go.name = Runtime.Ins.VO.mainPrefab.assetName;
+            go.name = mainPrefab.name;
         }
 
-        void OnProgress(float progress)
+        void OnProgress(float progress, long totalSize)
         {
-            Log.W("Progress: {1}", progress);
+            //Log.W("Progress: {0}", progress);
             if (null != onProgress)
             {
-                onProgress.Invoke(progress);
+                onProgress.Invoke(progress, totalSize);
             }
         }
 
         void OnStageChange(EState state)
         {
-            Log.W("Stage: {0}", state);
+            _currentState = state;
+            Log.W("state: {0}", state);            
             if(null != onStateChange)
             {
-                onStateChange.Invoke(state.ToString());
+                onStateChange.Invoke(state);
+            }
+                
+        }
+
+        /// <summary>
+        /// 发生错误
+        /// </summary>
+        /// <param name="error"></param>
+        private void OnError(string error)
+        {
+            if (null != onError)
+            {
+                onError.Invoke(error);
             }
         }
     }

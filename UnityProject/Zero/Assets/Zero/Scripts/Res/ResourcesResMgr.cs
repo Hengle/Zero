@@ -9,16 +9,11 @@ namespace Zero
     /// <summary>
     /// Resources资源的管理器
     /// </summary>
-    class ResourcesResMgr : AResMgr
+    public class ResourcesResMgr : AResMgr
     {
-        /// <summary>
-        /// AB文件后缀名
-        /// </summary>
-        string _abExt;
-
-        public ResourcesResMgr(string manifestFilePath)
+        public ResourcesResMgr()
         {
-            _abExt = Path.GetExtension(manifestFilePath);
+            
         }
 
         public override string[] GetDepends(string abName)
@@ -28,13 +23,14 @@ namespace Zero
 
         public override T Load<T>(string abName, string assetName)
         {
-            var asset = Resources.Load<T>(AssetBundlePath2ResourcePath(abName, assetName));
+            string path = AssetBundlePath2ResourcePath(abName, assetName);
+            var asset = Resources.Load<T>(path);
             return asset;
         }
 
         public override void LoadAsync(string abName, string assetName, Action<UnityEngine.Object> onLoaded, Action<float> onProgress = null)
         {
-            CoroutineBridge.Ins.StartCoroutine(ResourceLoadAsync(AssetBundlePath2ResourcePath(abName, assetName), onLoaded, onProgress));
+            ILBridge.Ins.StartCoroutine(ResourceLoadAsync(AssetBundlePath2ResourcePath(abName, assetName), onLoaded, onProgress));
         }
 
         public override void Unload(string abName, bool isUnloadAllLoaded = false, bool isUnloadDepends = true)
@@ -71,8 +67,8 @@ namespace Zero
         /// <param name="assetName"></param>
         string AssetBundlePath2ResourcePath(string abName, string assetName)
         {
-            abName = abName.Replace(_abExt, "");
-            if (abName != "resources") //resources表示从根目录获取资源，则不需要添加目录
+            abName = ABNameWithoutExtension(abName);
+            if (abName.ToLower() != ZeroConst.ROOT_AB_FILE_NAME) //resources表示从根目录获取资源，则不需要添加目录
             {
                 assetName = FileSystem.CombinePaths(abName, assetName);
             }

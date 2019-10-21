@@ -12,17 +12,19 @@ namespace Zero
     public class ResVerFileUpdate
     {
         Action _onLoaded;
+        Action<string> _onError;
 
         string _localPath;
 
-        public void Start(Action onLoaded)
+        public void Start(Action onLoaded, Action<string> onError)
         {
             Log.CI(Log.COLOR_BLUE, "「ResVerFileUpdate」资源版本号文件更新检查...");
             _onLoaded = onLoaded;
-            _localPath = Runtime.Ins.localResDir + "res.json";
-            if (Runtime.Ins.IsLoadFromNet)
+            _onError = onError;
+            _localPath = FileSystem.CombinePaths(Runtime.Ins.localResDir , ZeroConst.RES_JSON_FILE_NAME);
+            if (Runtime.Ins.IsLoadAssetsFromNet)
             {
-                CoroutineBridge.Ins.Run(Update());
+                ILBridge.Ins.StartCoroutine(Update());
             }
             else
             {
@@ -40,7 +42,7 @@ namespace Zero
 
         IEnumerator Update()
         {
-            Downloader loader = new Downloader(Runtime.Ins.netResDir + "res.json", _localPath, DateTime.UtcNow.ToFileTimeUtc().ToString());
+            Downloader loader = new Downloader(FileSystem.CombinePaths(Runtime.Ins.netResDir , ZeroConst.RES_JSON_FILE_NAME), _localPath, DateTime.UtcNow.ToFileTimeUtc().ToString());
             while (false == loader.isDone)
             {
                 yield return new WaitForEndOfFrame();
@@ -49,6 +51,10 @@ namespace Zero
             if (null != loader.error)
             {
                 Log.E(loader.error);
+                if (null != _onError)
+                {
+                    _onError.Invoke(loader.error);
+                }
                 yield break;
             }
             

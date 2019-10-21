@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 
 namespace Zero
 {
@@ -10,30 +11,69 @@ namespace Zero
         /// <summary>
         /// 红色
         /// </summary>
-        public const string COLOR_RED = "FF0000";
+        public const string COLOR_RED = "A83131";
+
+        /// <summary>
+        /// 橙色 
+        /// </summary>
+        public const string COLOR_ORANGE = "DE4D08";
+
+        /// <summary>
+        /// 黄色
+        /// </summary>
+        public const string COLOR_YELLOW = "D5CB6C";
 
         /// <summary>
         /// 绿色
         /// </summary>
-        public const string COLOR_GREEN = "00FF00";
+        public const string COLOR_GREEN = "33B1B0";
 
         /// <summary>
         /// 蓝色 
         /// </summary>
-        public const string COLOR_BLUE = "0000FF";
+        public const string COLOR_BLUE = "2762BD";
+
+        /// <summary>
+        /// 紫色
+        /// </summary>
+        public const string COLOR_PURPLE = "865FC5";
+
+
+        static bool _isActive = true;
 
         /// <summary>
         /// 日志是否激活
         /// </summary>
-        public static bool isActive = true;
-        
+        public static bool IsActive
+        {
+            get
+            {
+                return _isActive;
+            }
+
+            set
+            {
+                _isActive = value;
+                Debug.unityLogger.logEnabled = value;
+            }
+        }
+
         /// <summary>
         /// 打印信息
         /// </summary>
         /// <param name="message"></param>
         public static void I(object message)
+        {            
+            if(!IsActive)
+            {
+                return;
+            }
+            Debug.Log(message);
+        }
+
+        public static void I(string message)
         {
-            if(!isActive)
+            if (!IsActive)
             {
                 return;
             }
@@ -45,7 +85,7 @@ namespace Zero
         /// </summary>
         public static void I(string format, params object[] args)
         {
-            if (!isActive)
+            if (!IsActive)
             {
                 return;
             }
@@ -57,7 +97,7 @@ namespace Zero
         /// </summary>
         /// <param name="color"></param>
         /// <param name="message"></param>
-        public static void CI(string color, string message)
+        public static void CI(string color, object message)
         {
             if(null == message)
             {
@@ -90,10 +130,6 @@ namespace Zero
         /// </summary>
         public static void W(object message)
         {
-            if (!isActive)
-            {
-                return;
-            }
             Debug.LogWarning(message);
         }
 
@@ -102,10 +138,6 @@ namespace Zero
         /// </summary>
         public static void W(string format, params object[] args)
         {
-            if (!isActive)
-            {
-                return;
-            }
             Debug.LogWarningFormat(format, args);
         }
 
@@ -114,10 +146,6 @@ namespace Zero
         /// </summary>
         public static void E(object message)
         {
-            if (!isActive)
-            {
-                return;
-            }
             Debug.LogError(message);
         }
 
@@ -126,34 +154,40 @@ namespace Zero
         /// </summary>
         public static void E(string format, params object[] args)
         {
-            if (!isActive)
-            {
-                return;
-            }
             Debug.LogErrorFormat(format, args);
+        }
+
+        public static void CGUI(string color, object content)
+        {
+            var message = string.Format("<color=#{0}>{1}</color>", color, content);
+            GUI(message);
+        }
+
+        public static void CGUI(string color, string format, params object[] args)
+        {
+            var message = string.Format("<color=#{0}>{1}</color>", color, string.Format(format, args));
+            GUI(message);
+        }
+
+        public static void GUI(string format, params object[] args)
+        {
+            GUI(string.Format(format, args));
         }
 
         /// <summary>
         /// 在一个UI面板中显示一条日志消息
         /// </summary>
         /// <param name="content"></param>
-        public static void Msg(string content)
+        public static void GUI(string content)
         {
-            if (!isActive)
+            if (!IsActive)
             {
                 return;
             }
 
-            const string NAME = "LogMsg";
-            GameObject logMsg = GameObject.Find(NAME);
-            if (null == logMsg)
-            {
-                GameObject prefab = Resources.Load<GameObject>("zero/LogMsg");
-                logMsg = GameObject.Instantiate(prefab);
-                logMsg.name = NAME;
-            }
-
-            logMsg.GetComponent<LogMsg>().SetContent(content);
+            content = string.Format("[{0}] {1}", DateTime.Now.ToString("HH:mm:ss.fff"), content);
+            I(content);
+            GUILog.Show(content);
         }
     }
 }

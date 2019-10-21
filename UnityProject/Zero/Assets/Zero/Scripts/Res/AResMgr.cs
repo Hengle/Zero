@@ -1,12 +1,42 @@
-﻿using System;
+﻿using Jing;
+using System;
 
 namespace Zero
 {
     /// <summary>
     /// 资源加载抽象基类
     /// </summary>
-    abstract class AResMgr
+    public abstract class AResMgr
     {
+        /// <summary>
+        /// 如果AB名称没有后缀，则加上后缀名
+        /// </summary>
+        /// <param name="abName"></param>
+        protected string ABNameWithExtension(string abName)
+        {
+            if (false == abName.EndsWith(ZeroConst.AB_EXTENSION))
+            {
+                abName += ZeroConst.AB_EXTENSION;
+            }
+            abName = FileSystem.StandardizeBackslashSeparator(abName);
+            return abName;
+        }
+
+        /// <summary>
+        /// 如果AB名称有后缀，则去掉
+        /// </summary>
+        /// <param name="abName"></param>
+        /// <returns></returns>
+        protected string ABNameWithoutExtension(string abName)
+        {
+            if (abName.EndsWith(ZeroConst.AB_EXTENSION))
+            {
+                abName = abName.Replace(ZeroConst.AB_EXTENSION, "");
+            }
+            abName = FileSystem.StandardizeBackslashSeparator(abName);
+            return abName;
+        }
+
         /// <summary>
         /// AssetBundle文件的根目录
         /// </summary>

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Jing;
+using System;
 using System.Reflection;
 using UnityEngine;
 
@@ -9,36 +10,34 @@ namespace Zero
     /// </summary>
     public class ILContent : MonoBehaviour
     {
-        string _runMode;
-
         private void Start()
         {
-            var rt = Runtime.Ins;
-            var ilCfg = rt.ILCfg;
-
-            
-            string qualifiedName = Assembly.CreateQualifiedName(Runtime.Ins.ILCfg.fileName, ilCfg.className);
-            Type type = Type.GetType(ilCfg.className);
-            if(ilCfg.isOnlyDll || type == null)
+            var cfg = Runtime.Ins.VO;
+            if(null == cfg)
             {
-                string libDir = rt.localResDir + ilCfg.fileDir;
-                //初始化IL
-                ILRuntimeBridge.Ins.Startup(libDir, ilCfg.fileName, ilCfg.isDebugIL, ilCfg.isLoadPdb);
-                //调用启动方法
-                ILRuntimeBridge.Ins.Invoke(ilCfg.className, ilCfg.methodName);
+                return;
+            }
+            bool isUseDll = cfg.isUseDll && cfg.isHotResProject;
+            
+            Type type = Type.GetType(cfg.className);
+            if (isUseDll || type == null)
+            {
+                Log.CI(Log.COLOR_ORANGE, "IL代码运行环境: [外部程序集]");
 
-                _runMode = "外部程序集";
+                string dllDir = FileSystem.CombineDirs(false, Runtime.Ins.localResDir, ZeroConst.DLL_DIR_NAME);
+                //初始化IL
+                ILBridge.Ins.Startup(dllDir, ZeroConst.DLL_FILE_NAME, cfg.isDebugIL, cfg.isLoadPdb);
+                //调用启动方法
+                ILBridge.Ins.Invoke(cfg.className, cfg.methodName);
             }
             else
             {
+                Log.CI(Log.COLOR_ORANGE, "IL代码运行环境: [本地程序集]");
+
                 //使用本地类，直接启动本地类
-                MethodInfo method = type.GetMethod(ilCfg.methodName, BindingFlags.Static | BindingFlags.Public);
+                MethodInfo method = type.GetMethod(cfg.methodName, BindingFlags.Static | BindingFlags.Public);
                 method.Invoke(null, null);
-
-                _runMode = "本地程序集";
             }
-
-            Log.CI(Log.COLOR_BLUE, "IL代码运行环境: [{0}]", _runMode);
         }
     }
 }

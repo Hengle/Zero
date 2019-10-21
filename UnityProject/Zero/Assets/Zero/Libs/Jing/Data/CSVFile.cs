@@ -1,7 +1,7 @@
-﻿using System.Collections;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using UnityEngine;
+using System.Text;
 
 namespace Jing
 {
@@ -37,30 +37,41 @@ namespace Jing
             get { return _colCount; }
         }
 
+        /// <summary>
+        /// 通过数据生成
+        /// </summary>
+        /// <param name="data"></param>
+        public CSVFile(byte[] data, Encoding encoding)
+        {            
+            var content = encoding.GetString(data);
+            string[] rows = content.Split(new string[] { "\r\n" }, StringSplitOptions.None);
+            ParseRows(rows);
+        }
+
         public CSVFile(string path)
         {
             System.Text.Encoding encoding = GetEncoding(path);
-            string[] rows = File.ReadAllLines(path, encoding);            
-            for(int i = 0; i < rows.Length; i++)
+            string[] rows = File.ReadAllLines(path, encoding);
+            ParseRows(rows);
+        }       
+        
+        void ParseRows(string[] rows)
+        {
+            for (int i = 0; i < rows.Length; i++)
             {
                 var cols = GetCols(rows[i]);
                 if (null != cols)
                 {
                     _data.Add(cols.ToArray());
                 }
-
-                foreach(var str in cols)
-                {
-                    Debug.Log(str);
-                }
             }
 
             _rowCount = _data.Count;
-            if(_rowCount > 0)
+            if (_rowCount > 0)
             {
                 _colCount = _data[0].Length;
             }
-        }        
+        }
 
         /// <summary>
         /// 得到表格的值
@@ -93,6 +104,7 @@ namespace Jing
             {
                 char c = rowContent[charIdx];
                 int nextIdx = charIdx + 1;
+
                 if (charIdx == splitMark)
                 {                    
                     if (c == QUOTATION_MARKS)
@@ -102,6 +114,13 @@ namespace Jing
                     else
                     {
                         isSpecial = false;
+                        if(nextIdx == rowContent.Length)
+                        {
+                            //结束符
+                            string colContent = rowContent.Substring(splitMark);
+                            cols.Add(colContent);
+                            break;
+                        }
                     }
                 }
                 else
@@ -156,6 +175,7 @@ namespace Jing
                             //结束符
                             string colContent = rowContent.Substring(splitMark);
                             cols.Add(colContent);
+                            break;
                         }
                     }
                 }
@@ -177,10 +197,6 @@ namespace Jing
 
         System.Text.Encoding GetEncoding(FileStream fs)
         {
-            /*byte[] Unicode=new byte[]{0xFF,0xFE};  
-            byte[] UnicodeBIG=new byte[]{0xFE,0xFF};  
-            byte[] UTF8=new byte[]{0xEF,0xBB,0xBF};*/
-
             BinaryReader r = new BinaryReader(fs, System.Text.Encoding.Default);
             byte[] ss = r.ReadBytes(3);
             r.Close();

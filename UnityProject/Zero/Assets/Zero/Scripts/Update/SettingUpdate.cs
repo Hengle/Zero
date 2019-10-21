@@ -12,18 +12,22 @@ namespace Zero
     public class SettingUpdate
     {
         Action _onLoaded;
+        Action<string> _onError;
 
         string _localPath;
 
-        public void Start(Action onLoaded)
+        public void Start(Action onLoaded, Action<string> onError)
         {
             Log.CI(Log.COLOR_BLUE,"「SettingUpdate」配置文件更新检查...");
             _onLoaded = onLoaded;
-            _localPath = Runtime.Ins.localResDir + "setting.json";
+            _onError = onError;
+            _localPath = FileSystem.CombinePaths(Runtime.Ins.localResDir, "setting.json");
             
-            if (Runtime.Ins.IsLoadFromNet)
+            if (Runtime.Ins.IsLoadAssetsFromNet && Runtime.Ins.localData.IsUpdateSetting)
             {
-                CoroutineBridge.Ins.Run(Update(Runtime.Ins.netResDir + "setting.json"));
+                var netPath = FileSystem.CombinePaths(Runtime.Ins.netResDir , "setting.json");
+                Log.CI(Log.COLOR_BLUE, "配置文件: {0}", netPath);
+                ILBridge.Ins.StartCoroutine(Update(netPath));
             }
             else
             {                
@@ -50,22 +54,19 @@ namespace Zero
             if (null != loader.error)
             {
                 Log.E(loader.error);
+                if (null != _onError)
+                {
+                    _onError.Invoke(loader.error);
+                }
                 yield break;
             }
             loader.Dispose();
 
             SettingVO vo = LoadLocalSetting();
             Runtime.Ins.setting = vo;
-            Runtime.Ins.netResDir = FileSystem.CombineDirs(true, vo.netResRoot, Runtime.Ins.platform);                  
-            
-            if (Runtime.Ins.setting.settingJump.ContainsKey(Application.version))
-            {
-                CoroutineBridge.Ins.Run(Update(Runtime.Ins.setting.settingJump[Application.version]));
-            }
-            else
-            {
-                _onLoaded();
-            }
+            Runtime.Ins.netResDir = FileSystem.CombineDirs(true, vo.netResRoot, ZeroConst.PLATFORM_DIR_NAME);
+
+            _onLoaded();
             yield break;
         }
     }

@@ -11,6 +11,7 @@ namespace Zero
     public class ManifestFileUpdate
     {
         Action _onUpdate;
+        Action<string> _onError;
 
         string _localPath;
 
@@ -18,27 +19,43 @@ namespace Zero
 
         string _manifestName;
 
-        public void Start(Action onUpdate)
+        public void Start(Action onUpdate, Action<string> onError)
         {
             Log.CI(Log.COLOR_BLUE, "「ManifestFileUpdate」Manifest描述文件更新检查...");
             _rt = Runtime.Ins;
-            _manifestName = _rt.netResVer.VO.manifestName;
+            _manifestName = FileSystem.CombinePaths(ZeroConst.AB_DIR_NAME, ZeroConst.MANIFEST_FILE_NAME + ZeroConst.AB_EXTENSION);
             _onUpdate = onUpdate;
-            _localPath = _rt.localResDir + _manifestName;
+            _onError = onError;
+            _localPath = FileSystem.CombinePaths(_rt.localResDir , _manifestName);
 
-            if (Runtime.Ins.IsLoadFromNet && false == _rt.netResVer.IsSameVer(_manifestName, _rt.localResVer))
+            if (Runtime.Ins.IsLoadAssetsFromNet && false == _rt.netResVer.IsSameVer(_manifestName, _rt.localResVer))
             {
-                CoroutineBridge.Ins.Run(Update(_rt.netResDir + _manifestName, _rt.netResVer.GetVer(_manifestName)));
+                ILBridge.Ins.StartCoroutine(Update(_rt.netResDir + _manifestName, _rt.netResVer.GetVer(_manifestName)));
             }
             else
             {
-                InitAssetBundleMgr();
+                InitResMgr();
             }
         }
 
-        void InitAssetBundleMgr()
+        void InitResMgr()
         {
-            ResMgr.Ins.Init(Runtime.Ins.IsLoadABFromResources ? ResMgr.EResMgrType.RESOURCES : ResMgr.EResMgrType.ASSET_BUNDLE, _localPath);
+            if(Runtime.Ins.IsHotResProject)
+            {
+                if (Runtime.Ins.IsLoadAssetsByAssetDataBase)
+                {
+                    ResMgr.Ins.Init(ResMgr.EResMgrType.ASSET_DATA_BASE, Runtime.Ins.VO.hotResRoot);
+                }
+                else
+                {
+                    ResMgr.Ins.Init(ResMgr.EResMgrType.ASSET_BUNDLE, _localPath);
+                }
+            }
+            else
+            {
+                ResMgr.Ins.Init(ResMgr.EResMgrType.RESOURCES, _localPath);
+            }
+
             _onUpdate();
         }
 
@@ -53,13 +70,17 @@ namespace Zero
             if (null != loader.error)
             {
                 Log.E(loader.error);
+                if (null != _onError)
+                {
+                    _onError.Invoke(loader.error);
+                }
                 yield break;
             }
             loader.Dispose();
 
             _rt.localResVer.SetVerAndSave(_manifestName, ver);
 
-            InitAssetBundleMgr();
+            InitResMgr();
             yield break;
         }
 
